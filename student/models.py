@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils import timezone
+
 
 GENDER = (
     ('Male','Male'),
@@ -47,3 +49,27 @@ class StudentApplication(models.Model):
     higher_secondary_certificate_upload= models.FileField(upload_to ='HS_certificate')
     DisplayFields = ['student_name','email','contact_number','date_of_birth','gender','religion']
     SearchableFields = ['student_name','email','contact_number','date_of_birth','gender','religion']
+    accepted = models.BooleanField(default=False)
+
+class Notification(models.Model):
+    student = models.ForeignKey(StudentApplication, on_delete=models.CASCADE)
+    time = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    
+
+    def __str__(self):
+        return f" {self.student.student_name} - {self.time}"
+    
+
+    def is_expired(self):
+        expiration_time = self.time + timezone.timedelta(minutes=2880)  
+        return timezone.now() > expiration_time
+    
+    def read(self):
+        self.is_read = True
+        self.save()
+
+    @classmethod
+    def delete_expired_notifications(cls):
+        expired_notifications = cls.objects.filter(time__lte=timezone.now() - timezone.timedelta(minutes=2880))
+        expired_notifications.delete()
